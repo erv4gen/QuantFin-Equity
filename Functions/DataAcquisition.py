@@ -1,4 +1,4 @@
-import time , os
+import time , os ,re
 from tqdm import tqdm
 import pandas as pd
 from datetime import datetime
@@ -120,12 +120,18 @@ def GetStats(gathers = None,path='', limit = None):
                 try:
                     values = {}
 
-                    for gather in  gathers:
+                    for gather in gathers:
                         try:
-                            #value = data[data.index(gather+':')+1]
-                            #import ipdb 
-                            #ipdb.set_trace()
-                            value = [x for x in data if gather in x][0]
+                            def match(x, gather):
+                                try:
+                                    if re.match('^%s' % gather, x).group() is not None:
+                                        return True
+                                    else:
+                                        return False
+                                except:
+                                    return False
+                            element = [x for x in data if match(x,gather)][0]
+                            value = data[data.index(element)+1]
                             if '%' in value:
                                 value = float(value.strip('%')) / 100.
                             else:
