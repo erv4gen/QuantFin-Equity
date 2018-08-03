@@ -177,8 +177,13 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
                                'Absolute_Stock_Perfomance_Flag',
                                 'YtY_Stock_Perfomance',
                                'YtY_Stock_Perfomance_Flag',
-                                'Stock Future Value',
-                                'SNP500 Future Value'
+                                'Stock_Future_Value',
+                                'SNP500_Future_Value',
+                                'Stock_Future_Pefomance',
+                                'SNP500_Future_Perfomance',
+                                'Alpha',
+                                'Investable_Flag'        
+     
                               ])
     starting_stock_value = False
     starting_sp_500_value = False
@@ -203,23 +208,22 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
             
             
             unix_time_future = unix_time_current + delta            
-            if unix_time_future < (time.time()-86400):
-                try:
-                    while datetime.fromtimestamp(unix_time_future).weekday() > 4:
-                        print('Pointing Future Date is - ',datetime.fromtimestamp(unix_time_future).weekday(),'(Day of the week)\nChecking Next Day')
-                        #ipdb.set_trace()
-                        unix_time_future -= 86400
-                    snp500_data_future = datetime.fromtimestamp(unix_time_future).strftime('%Y-%m-%d')
-                    row = snp500[snp500.index==snp500_data_future]
-                    snp500_value_future = float(row['Adj Close'])
-                    stock_price_future = quandl_stocks_host_price(symbol=symbol,date=snp500_data_future)
-                except:
-                    snp500_value_future = None
-                    stock_price_future = None
-            else:
-                    snp500_value_future = None
-                    stock_price_future = None
             
+            try:
+                if unix_time_future < (time.time()-86400):
+                    raise Exception('Cannot see the future')
+                while datetime.fromtimestamp(unix_time_future).weekday() > 4:
+                    print('Pointing Future Date is - ',datetime.fromtimestamp(unix_time_future).weekday(),'(Day of the week)\nChecking Next Day')
+                    #ipdb.set_trace()
+                    unix_time_future -= 86400
+                snp500_data_future = datetime.fromtimestamp(unix_time_future).strftime('%Y-%m-%d')
+                row = snp500[snp500.index==snp500_data_future]
+                snp500_value_future = float(row['Adj Close'])
+                stock_price_future = quandl_stocks_host_price(symbol=symbol,date=snp500_data_future)
+            except:
+                snp500_value_future = -1
+                stock_price_future = -1
+
             
         except:
             print('Cannot Get data from Quandl. Skipping this one')
@@ -247,7 +251,7 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
             
             yty_pr_change = 100*(stock_price_current -df.loc[i-1,'StockPrice']) / df.loc[i-1,'StockPrice'] #'YtY Stock Price Value Change'
             yty_snp_change = 100*(snp500_value_current -df.loc[i-1,'SNPValue']) / df.loc[i-1,'SNPValue'] #'YtY SNP500 Value Change'
-
+        
         #'Absolute Difference - abs price perfomance minus abs snp500 perfomance'
         abs_difference_in_perfomance_pr_vs_snp = stock_change_abs-snp500_change_abs
         #'YearToYear Difference - yty price % change minus yty snp500 % change
@@ -257,7 +261,11 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
         yty_perf_flag =  int(np.where( (yty_pr_change -yty_snp_change) >0 , 1,0 )) #'YtY Stock Perfomance Flag - 1 if outperfom snp500 ; 0 is underperform'
         
         #Current_to_future_stock_change = (
-        Status = np.where((stock_change_abs - snp500_change_abs) >0,1,0) #1 - outperform, 0 - ounderperform
+        
+        stock_change_abs_funure  = (stock_price_future - stock_price_current) / stock_price_current
+        snp500_change_abs_future = (snp500_value_future - snp500_value_current) / snp500_value_current
+        alpha = stock_change_abs_funure - snp500_change_abs_future
+        investable = np.where((stock_change_abs_funure - snp500_change_abs_future) >0,1,0) #1 - outperform, 0 - ounderperform
         df = df.append({'Ticker': symbol,
                         'UNIX': unix_time,
                       'SNPDate' :snp500_data_current,
@@ -271,8 +279,12 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
                        'Absolute_Stock_Perfomance_Flag': abs_stock_perf_flag,
                          'YtY_Stock_Perfomance': YtYDifference_in_perfomance_pr_vs_snp,
                        'YtY_Stock_Perfomance_Flag' : yty_perf_flag,
-                        'Stock Future Value': stock_price_future,
-                        'SNP500 Future Value': snp500_value_future},
+                        'Stock_Future_Value': stock_price_future,
+                        'SNP500_Future_Value': snp500_value_future,
+                        'Stock_Future_Pefomance': stock_change_abs_funure,
+                       'SNP500_Future_Perfomance': snp500_change_abs_future,
+                       'Alpha': alpha,
+                       'Investable_Flag':investable},
                        ignore_index=True)
         i+=1
     save = r"c:\data\finml\PriceVsSNP500_"+str(symbol)+".csv"
