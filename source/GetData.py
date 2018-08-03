@@ -1,4 +1,8 @@
-from Functions import General ,PlotFunctions , DataAcquisition
+
+import sys
+sys.path.append('c:/pjt/QuantFin-Equity/source/libs/')
+#from libs import General ,PlotFunctions , DataAcquisition
+import General ,PlotFunctions , DataAcquisition
 import time , os
 from tqdm import tqdm
 import pandas as pd
@@ -10,9 +14,9 @@ from time import mktime
 import datetime
 import mysql.connector
 from ipdb import set_trace
-
 import numpy as np
 
+print("Start working")
 path = 'c:/data/Datasets/stocksfundam/'
 limit  = int(input("what the size(amount of tickers)?"))
 stock_list = [f for f in os.listdir(path)]  
@@ -31,7 +35,8 @@ for stock in stock_list:
     else:
         i+=1
         continue
-    
+
+
 
 res_df = pd.concat(df_list, ignore_index=True)
 
@@ -39,6 +44,10 @@ res_df = pd.concat(df_list, ignore_index=True)
 res_df['Date'] = pd.to_datetime(res_df['Quarter end'])
 res_df.Absolute_Stock_Perfomance = res_df.Absolute_Stock_Perfomance.astype(float)
 res_path = r'c:\data\Datasets\agg'+str(limit)+'.csv'
+
+res_df
+
+#%%
 
 res_df.to_csv(res_path,index=False)
 
@@ -70,3 +79,4 @@ try:
     print("Export has finished successfully")
 except:
     print('cannot conect to SQL')
+    

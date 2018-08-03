@@ -210,7 +210,7 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
             unix_time_future = unix_time_current + delta            
             
             try:
-                if unix_time_future < (time.time()-86400):
+                if unix_time_future > (time.time()-86400):
                     raise Exception('Cannot see the future')
                 while datetime.fromtimestamp(unix_time_future).weekday() > 4:
                     print('Pointing Future Date is - ',datetime.fromtimestamp(unix_time_future).weekday(),'(Day of the week)\nChecking Next Day')
@@ -220,7 +220,8 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
                 row = snp500[snp500.index==snp500_data_future]
                 snp500_value_future = float(row['Adj Close'])
                 stock_price_future = quandl_stocks_host_price(symbol=symbol,date=snp500_data_future)
-            except:
+            except Exception as e:
+                print(e)
                 snp500_value_future = -1
                 stock_price_future = -1
 
