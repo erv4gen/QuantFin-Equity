@@ -1,4 +1,4 @@
-import time , os ,re
+import time , os ,re , ipdb
 from tqdm import tqdm
 import pandas as pd
 from datetime import datetime
@@ -11,7 +11,7 @@ import numpy as np
 
 import ipdb
 
-def quandl_stocks_host_price(symbol, date='2008-01-02', n=10):
+def quandl_stocks_host_price(symbol, date='2008-01-02', n=20):
     """
     ===---This function returns the Historical quotes of the selected ticket---===
     
@@ -24,7 +24,7 @@ def quandl_stocks_host_price(symbol, date='2008-01-02', n=10):
     """
     #ipdb.set_trace()
     print('Getting quots \nTicker: ',symbol,'\nDate: ',date)
-    quandl.ApiConfig.api_key = '3epFW-eMFHf54_jpDFyS'
+    quandl.ApiConfig.api_key = open('c:\data\quandl\cred.txt','r').read()
     query_list = 'WIKI' + '/' + symbol
     def get_quote(date):
         responce = quandl.get(query_list, 
@@ -44,10 +44,10 @@ def quandl_stocks_host_price(symbol, date='2008-01-02', n=10):
         if responce.shape[0]==0:
             print('Wrong Day, Cheching Next')
             date = [int(x) for x in date.split('-')] 
-            if date[2]>3:
-                date[2] -=1
-            else:
+            if date[2]<28:
                 date[2] +=1
+            else:
+                date[2] -=2
             date = '-'.join([str(x) for x in date])
         else:
             print('Quote Loaded')
@@ -129,6 +129,8 @@ def GetStats(gathers = None,path='', limit = None):
                                     else:
                                         return False
                                 except:
+                                    #if 'DE Ratio' not in gather and gather in x:
+                                        #ipdb.set_trace()
                                     return False
                             element = [x for x in data if match(x,gather)][0]
                             value = data[data.index(element)+1]
@@ -154,7 +156,7 @@ def GetStats(gathers = None,path='', limit = None):
 
 
 
-def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\intraQuarter\YAHOO-INDEX_GSPC.csv'):
+def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\intraQuarter\YAHOO-INDEX_GSPC.csv',delta = 31556926):
     '''Return the historic stock price of selected ticker
     input: symbol = 'ABC' ; date_range = pd.Series of dates in UNIX format
     if input date is weekend will return closest workday.
@@ -174,7 +176,9 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
                                 'Absolute_Stock_Perfomance',
                                'Absolute_Stock_Perfomance_Flag',
                                 'YtY_Stock_Perfomance',
-                               'YtY_Stock_Perfomance_Flag'
+                               'YtY_Stock_Perfomance_Flag',
+                                'Stock Future Value',
+                                'SNP500 Future Value'
                               ])
     starting_stock_value = False
     starting_sp_500_value = False
@@ -182,23 +186,48 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
     snp500 = pd.read_csv(snppath, index_col=0)
 
     print("Getting Stock Price Data...")
-    for unix_time in tqdm(date_range):
         
+    for unix_time in tqdm(date_range):
+            
         try:
             print('Getting Original Date')
-            while datetime.fromtimestamp(unix_time).weekday() > 4:
-                print('Pointing Date is - ',datetime.fromtimestamp(unix_time).weekday(),'(Day of the week)\nChecking Next Day')
+            unix_time_current = unix_time
+            while datetime.fromtimestamp(unix_time_current).weekday() > 4:
+                print('Pointing Current Date is - ',datetime.fromtimestamp(unix_time_current).weekday(),'(Day of the week)\nChecking Next Day')
                 #ipdb.set_trace()
-                unix_time += 129600
-            snp500_data = datetime.fromtimestamp(unix_time).strftime('%Y-%m-%d')
-            row = snp500[snp500.index==snp500_data]
-            snp500_value = float(row['Adj Close'])
-            stock_price = quandl_stocks_host_price(symbol=symbol,date=snp500_data)
+                unix_time_current += 86400
+            snp500_data_current = datetime.fromtimestamp(unix_time_current).strftime('%Y-%m-%d')
+            row = snp500[snp500.index==snp500_data_current]
+            snp500_value_current = float(row['Adj Close'])
+            stock_price_current = quandl_stocks_host_price(symbol=symbol,date=snp500_data_current)
+            
+            
+            unix_time_future = unix_time_current + delta            
+            if unix_time_future < (time.time()-86400):
+                try:
+                    while datetime.fromtimestamp(unix_time_future).weekday() > 4:
+                        print('Pointing Future Date is - ',datetime.fromtimestamp(unix_time_future).weekday(),'(Day of the week)\nChecking Next Day')
+                        #ipdb.set_trace()
+                        unix_time_future -= 86400
+                    snp500_data_future = datetime.fromtimestamp(unix_time_future).strftime('%Y-%m-%d')
+                    row = snp500[snp500.index==snp500_data_future]
+                    snp500_value_future = float(row['Adj Close'])
+                    stock_price_future = quandl_stocks_host_price(symbol=symbol,date=snp500_data_future)
+                except:
+                    snp500_value_future = None
+                    stock_price_future = None
+            else:
+                    snp500_value_future = None
+                    stock_price_future = None
+            
+            
         except:
             print('Cannot Get data from Quandl. Skipping this one')
-            continue
-            
-            ipdb.set_trace()
+            snp500_value_future = -1
+            stock_price_future = -1
+            snp500_value_current = -1
+            stock_price_current = -1
+        
         
         if not starting_stock_value and not starting_sp_500_value:
             stock_change_abs = 0
@@ -209,15 +238,15 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
             abs_stock_perf_flag = 0
             yty_perf_flag = 0
             
-            starting_sp_500_value = snp500_value
-            starting_stock_value = stock_price
+            starting_sp_500_value = snp500_value_current
+            starting_stock_value = stock_price_current
             
         else:
-            stock_change_abs = 100*(stock_price -starting_stock_value) / starting_stock_value #absolute stock change 
-            snp500_change_abs = 100*(snp500_value - starting_sp_500_value) / starting_sp_500_value # absoulte snp500 change
+            stock_change_abs = 100*(stock_price_current -starting_stock_value) / starting_stock_value #absolute stock change 
+            snp500_change_abs = 100*(snp500_value_current - starting_sp_500_value) / starting_sp_500_value # absoulte snp500 change
             
-            yty_pr_change = 100*(stock_price -df.loc[i-1,'StockPrice']) / df.loc[i-1,'StockPrice'] #'YtY Stock Price Value Change'
-            yty_snp_change = 100*(snp500_value -df.loc[i-1,'SNPValue']) / df.loc[i-1,'SNPValue'] #'YtY SNP500 Value Change'
+            yty_pr_change = 100*(stock_price_current -df.loc[i-1,'StockPrice']) / df.loc[i-1,'StockPrice'] #'YtY Stock Price Value Change'
+            yty_snp_change = 100*(snp500_value_current -df.loc[i-1,'SNPValue']) / df.loc[i-1,'SNPValue'] #'YtY SNP500 Value Change'
 
         #'Absolute Difference - abs price perfomance minus abs snp500 perfomance'
         abs_difference_in_perfomance_pr_vs_snp = stock_change_abs-snp500_change_abs
@@ -227,13 +256,13 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
         abs_stock_perf_flag =  int(np.where( (stock_change_abs-snp500_change_abs)>0,1,0 ))#'Absolute Stock Perfomance Comparing to SNP500 Index Flag - 1 if outperfom snp500 ; 0 is underperform',
         yty_perf_flag =  int(np.where( (yty_pr_change -yty_snp_change) >0 , 1,0 )) #'YtY Stock Perfomance Flag - 1 if outperfom snp500 ; 0 is underperform'
         
-        
+        #Current_to_future_stock_change = (
         Status = np.where((stock_change_abs - snp500_change_abs) >0,1,0) #1 - outperform, 0 - ounderperform
         df = df.append({'Ticker': symbol,
                         'UNIX': unix_time,
-                      'SNPDate' :snp500_data,
-                      'SNPValue' : snp500_value,
-                      'StockPrice' : stock_price,
+                      'SNPDate' :snp500_data_current,
+                      'SNPValue' : snp500_value_current,
+                      'StockPrice' : stock_price_current,
                        'Absolute_Stock_Perfomance' :stock_change_abs ,
                        'Absolute_SNP500_Perfomance' : snp500_change_abs,
                        'YtY_Stock_Price_Value_Change' : yty_pr_change,
@@ -241,7 +270,9 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
                         'Absolute_Stock_Perfomance': abs_difference_in_perfomance_pr_vs_snp,
                        'Absolute_Stock_Perfomance_Flag': abs_stock_perf_flag,
                          'YtY_Stock_Perfomance': YtYDifference_in_perfomance_pr_vs_snp,
-                       'YtY_Stock_Perfomance_Flag' : yty_perf_flag},
+                       'YtY_Stock_Perfomance_Flag' : yty_perf_flag,
+                        'Stock Future Value': stock_price_future,
+                        'SNP500 Future Value': snp500_value_future},
                        ignore_index=True)
         i+=1
     save = r"c:\data\finml\PriceVsSNP500_"+str(symbol)+".csv"
