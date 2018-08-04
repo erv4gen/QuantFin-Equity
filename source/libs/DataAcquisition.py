@@ -8,10 +8,7 @@ import quandl
 from time import mktime
 import numpy as np
 
-
-import ipdb
-
-def quandl_stocks_host_price(symbol, date='2008-01-02', n=20):
+def quandl_stocks_host_price(symbol='SNP500', date='2008-01-02', n=10):
     """
     ===---This function returns the Historical quotes of the selected ticket---===
     
@@ -25,7 +22,11 @@ def quandl_stocks_host_price(symbol, date='2008-01-02', n=20):
     #ipdb.set_trace()
     print('Getting quots \nTicker: ',symbol,'\nDate: ',date)
     quandl.ApiConfig.api_key = open('c:\data\quandl\cred.txt','r').read()
-    query_list = 'WIKI' + '/' + symbol
+    if symbol=='SNP500':
+        query_list = 'BCIW/_INX'
+    else:
+        query_list = 'WIKI' + '/' + symbol
+
     def get_quote(date):
         responce = quandl.get(query_list, 
                 returns='pandas', 
@@ -185,11 +186,14 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
                                 'Investable_Flag'        
      
                               ])
+    
     starting_stock_value = False
     starting_sp_500_value = False
     i = 0
-    snp500 = pd.read_csv(snppath, index_col=0)
-
+    snp500 = pd.read_csv(snppath)
+    snp500.Date = snp500.Date.apply(lambda x: pd.to_datetime(x).strftime('%Y-%m-%d'))
+    stock_fund = pd.read_csv(r'c:\data\Datasets\stocksfundam-concated\1res.csv')
+    stock_fund['Quarter end'] = stock_fund['Quarter end'].apply(lambda x: pd.to_datetime(x).strftime('%Y-%m-%d'))
     print("Getting Stock Price Data...")
         
     for unix_time in tqdm(date_range):
@@ -197,28 +201,36 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
         try:
             print('Getting Original Date')
             unix_time_current = unix_time
-            while datetime.fromtimestamp(unix_time_current).weekday() > 4:
+            snp500_value_current = pd.Series()
+            while not(datetime.fromtimestamp(unix_time_current).weekday() <= 4  and snp500_value_current.shape[0] > 0):
                 print('Pointing Current Date is - ',datetime.fromtimestamp(unix_time_current).weekday(),'(Day of the week)\nChecking Next Day')
                 #ipdb.set_trace()
-                unix_time_current += 86400
-            snp500_data_current = datetime.fromtimestamp(unix_time_current).strftime('%Y-%m-%d')
-            row = snp500[snp500.index==snp500_data_current]
-            snp500_value_current = float(row['Adj Close'])
+                unix_time_current -= 86400
+                snp500_data_current = datetime.fromtimestamp(unix_time_current).strftime('%Y-%m-%d')
+                snp500_value_current = snp500.loc[snp500.Date==snp500_data_current,'Adj Close']
+                #stock_price_current = stock_fund.loc[ ( stock_fund['Quarter end']==datetime.fromtimestamp(unix_time).strftime('%Y-%m-%d') )  & (stock_fund['Ticker']==symbol), 'Price']
+
+
+            snp500_value_current = float(snp500_value_current)
             stock_price_current = quandl_stocks_host_price(symbol=symbol,date=snp500_data_current)
-            
-            
-            unix_time_future = unix_time_current + delta            
+            #stock_price_current = float(stock_price_current)
+            print('Got Current Prices')
             
             try:
+                print('Getting Future Date')
+                unix_time_future = unix_time_current + delta    
+                snp500_value_future = pd.Series()
+
                 if unix_time_future > (time.time()-86400):
                     raise Exception('Cannot see the future')
-                while datetime.fromtimestamp(unix_time_future).weekday() > 4:
+
+                while not(datetime.fromtimestamp(unix_time_future).weekday() <= 4 and snp500_value_future.shape[0] > 0):
                     print('Pointing Future Date is - ',datetime.fromtimestamp(unix_time_future).weekday(),'(Day of the week)\nChecking Next Day')
-                    #ipdb.set_trace()
                     unix_time_future -= 86400
-                snp500_data_future = datetime.fromtimestamp(unix_time_future).strftime('%Y-%m-%d')
-                row = snp500[snp500.index==snp500_data_future]
-                snp500_value_future = float(row['Adj Close'])
+                    snp500_data_future = datetime.fromtimestamp(unix_time_future).strftime('%Y-%m-%d')
+                    snp500_value_future = snp500.loc[snp500.Date==snp500_data_future,'Adj Close']
+
+                snp500_value_future = float(snp500_value_future)
                 stock_price_future = quandl_stocks_host_price(symbol=symbol,date=snp500_data_future)
             except Exception as e:
                 print(e)
@@ -227,7 +239,7 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
 
             
         except:
-            print('Cannot Get data from Quandl. Skipping this one')
+            print('Cannot Get Any Data. Skipping this row')
             snp500_value_future = -1
             stock_price_future = -1
             snp500_value_current = -1
@@ -288,6 +300,7 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
                        'Investable_Flag':investable},
                        ignore_index=True)
         i+=1
+
     save = r"c:\data\finml\PriceVsSNP500_"+str(symbol)+".csv"
     print('Will save to file: ',save)
     df.to_csv(save,index=False)
@@ -297,3 +310,19 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
 
 
 
+
+def concatall_manually():
+    import pandas as pd
+    import os , ipdb
+    from tqdm import tqdm
+    path = r'c:/data/finml/'
+    stock_list = [f for f in os.listdir(path)]
+
+    df_list = []
+    for stock in tqdm(stock_list):
+        ticker = stock.split('_')[0]
+        df = pd.read_csv(path+stock)
+        df_list.append(df)
+
+    res_df = pd.concat(df_list,ignore_index=True)
+    res_df.to_csv('c:/data/Datasets/stocksfundam-concated/res_man.csv',index=False)

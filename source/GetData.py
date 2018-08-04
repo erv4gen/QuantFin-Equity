@@ -1,4 +1,4 @@
-
+#%%
 import sys
 sys.path.append('c:/pjt/QuantFin-Equity/source/libs/')
 #from libs import General ,PlotFunctions , DataAcquisition
@@ -14,11 +14,10 @@ from time import mktime
 import datetime
 import mysql.connector
 from ipdb import set_trace
-import numpy as np
-
+import numpy as np  
 print("Start working")
 path = 'c:/data/Datasets/stocksfundam/'
-limit  = int(input("what the size(amount of tickers)?"))
+limit  = 30#int(input("what the size(amount of tickers)?"))
 stock_list = [f for f in os.listdir(path)]  
 i = 0
 df_list = []
@@ -27,9 +26,11 @@ for stock in stock_list:
     df = pd.read_csv(path+stock)
     df['Ticker'] = ticker
     df['UNIX'] = df['Quarter end'].apply(lambda s:time.mktime(datetime.datetime.strptime(s, "%Y-%m-%d").timetuple()) )
+    df.sort_values(by='UNIX',inplace=True)
     ticker_price_df = DataAcquisition.get_stock_perfomance(symbol=ticker,date_range=df['UNIX'])
     res_df = pd.merge(df,ticker_price_df,on=['UNIX','Ticker'],how='inner')
     df_list.append(res_df)
+    time.sleep(300)
     if i>limit:
         break
     else:
@@ -44,12 +45,12 @@ res_df = pd.concat(df_list, ignore_index=True)
 res_df['Date'] = pd.to_datetime(res_df['Quarter end'])
 res_df.Absolute_Stock_Perfomance = res_df.Absolute_Stock_Perfomance.astype(float)
 res_path = r'c:\data\Datasets\agg'+str(limit)+'.csv'
-
+res_df.to_csv(res_path,index=False)
 res_df
 
 #%%
 
-res_df.to_csv(res_path,index=False)
+
 
 try:     
     from sqlalchemy import create_engine , event
@@ -79,4 +80,6 @@ try:
     print("Export has finished successfully")
 except:
     print('cannot conect to SQL')
-    
+
+
+
