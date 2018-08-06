@@ -192,8 +192,8 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
     i = 0
     snp500 = pd.read_csv(snppath)
     snp500.Date = snp500.Date.apply(lambda x: pd.to_datetime(x).strftime('%Y-%m-%d'))
-    stock_fund = pd.read_csv(r'c:\data\Datasets\stocksfundam-concated\1res.csv')
-    stock_fund['Quarter end'] = stock_fund['Quarter end'].apply(lambda x: pd.to_datetime(x).strftime('%Y-%m-%d'))
+    #stock_fund = pd.read_csv(r'c:\data\Datasets\stocksfundam-concated\res.csv')
+    #stock_fund['Quarter end'] = stock_fund['Quarter end'].apply(lambda x: pd.to_datetime(x).strftime('%Y-%m-%d'))
     print("Getting Stock Price Data...")
         
     for unix_time in tqdm(date_range):
@@ -308,27 +308,38 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
 
 
 
-
-
-
-def concatall_manually():
-    import pandas as pd
-    import os , ipdb
-    from tqdm import tqdm
-    path = r'c:/data/finml/'
+def concatall_fundamentals():
+    '''This Function Walking throught saved in <path> CSVs and concatinating together'''
+    path = r'c:/data/Datasets/stocksfundam/'
     stock_list = [f for f in os.listdir(path)]
-
     df_list = []
     for stock in tqdm(stock_list):
         ticker = stock.split('_')[0]
         df = pd.read_csv(path+stock)
+        df['Ticker'] = ticker
+        df['UNIX'] = df['Quarter end'].apply(lambda s:time.mktime(datetime.strptime(s, "%Y-%m-%d").timetuple()) )
+        df['Quarter end'] = pd.to_datetime(df['Quarter end'])
+        df.sort_values(by='UNIX',inplace=True)
         df_list.append(df)
 
     res_df = pd.concat(df_list,ignore_index=True)
-    res_df.to_csv('c:/data/Datasets/stocksfundam-concated/res_man.csv',index=False)
+    res_df.to_csv('c:/data/Datasets/stocksfundam-concated/all_fund_concated.csv',index=False)
+    return res_df
 
 
-
+def get_stock_prices(tickers = None):
+    '''This function walking throught list of tickers and saving it's historical prices to the local 
+        folder'''
+    from urllib import request
+    import random
+    print('Start Saving Historocal Quots from alphavantage')
+    for ticker in tqdm(tickers):
+        apikey = open('c:/data/cred/alphavantage.txt','r').read()
+        lpath = 'c:/data/Datasets/stockprices/' + ticker +'.csv'
+        req_str = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={ticker}&apikey={apikey}&datatype=csv&outputsize=full'
+        request.urlretrieve(req_str, lpath)
+        time.sleep(random.randrange(1,3))
+    print('All Data Saved Localy')
 
 def get_data_sql(name='SNP500 Stocks - 50'):
     from sqlalchemy import create_engine , event
@@ -355,3 +366,7 @@ def get_data_local(con_man=True):
     else:
         path = 'c:/data/Datasets/stocksfundam-concated/res_man.csv'
         return pd.read_csv(path)
+
+
+
+
