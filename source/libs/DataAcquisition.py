@@ -333,12 +333,16 @@ def get_stock_prices(tickers = None):
     from urllib import request
     import random
     print('Start Saving Historocal Quots from alphavantage')
+    i = 0
     for ticker in tqdm(tickers):
         apikey = open('c:/data/cred/alphavantage.txt','r').read()
         lpath = 'c:/data/Datasets/stockprices/' + ticker +'.csv'
         req_str = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={ticker}&apikey={apikey}&datatype=csv&outputsize=full'
         request.urlretrieve(req_str, lpath)
         time.sleep(random.randrange(1,3))
+        if i > 20:
+            i=0
+            time.sleep(60*60*2)
     print('All Data Saved Localy')
 
 def get_data_sql(name='SNP500 Stocks - 50'):
