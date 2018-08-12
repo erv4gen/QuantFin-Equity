@@ -21,18 +21,22 @@ print("Start working")
 
 
 
+def get_price_from_web():
+    stock_fund = DataAcquisition.concatall_fundamentals()
+    #stock_fund['Quarter end'] = stock_fund['Quarter end'].apply(lambda x: pd.to_datetime(x).strftime('%Y-%m-%d'))
+    tickers = list(stock_fund.Ticker.unique())
+    with open('tickers.txt','w') as f:
+        f.write('\n'.join(tickers))
 
-stock_fund = DataAcquisition.concatall_fundamentals()
-#stock_fund['Quarter end'] = stock_fund['Quarter end'].apply(lambda x: pd.to_datetime(x).strftime('%Y-%m-%d'))
-tickers = list(stock_fund.Ticker.unique())
-DataAcquisition.get_stock_prices(tickers)
+    DataAcquisition.get_stock_prices(tickers)
+
+
 
 
 
 #%%
-'''
+
 path = 'c:/data/Datasets/stocksfundam/'
-limit  = 30#int(input("what the size(amount of tickers)?"))
 stock_list = [f for f in os.listdir(path)]  
 i = 0
 df_list = []
@@ -45,13 +49,6 @@ for stock in stock_list:
     ticker_price_df = DataAcquisition.get_stock_perfomance(symbol=ticker,date_range=df['UNIX'])
     res_df = pd.merge(df,ticker_price_df,on=['UNIX','Ticker'],how='inner')
     df_list.append(res_df)
-    time.sleep(60)
-    if i>limit:
-        break
-    else:
-        i+=1
-        continue
-
 
 
 res_df = pd.concat(df_list, ignore_index=True)
@@ -59,10 +56,10 @@ res_df = pd.concat(df_list, ignore_index=True)
 
 res_df['Date'] = pd.to_datetime(res_df['Quarter end'])
 res_df.Absolute_Stock_Perfomance = res_df.Absolute_Stock_Perfomance.astype(float)
-res_path = r'c:\data\Datasets\agg'+str(limit)+'.csv'
+res_path = 'c:/data/Datasets/SnPStocksAgg/res.csv'
 res_df.to_csv(res_path,index=False)
-res_df
-'''
+print(res_df.head)
+
 #%%
 
 

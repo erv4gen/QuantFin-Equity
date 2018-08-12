@@ -186,14 +186,19 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
                                 'Investable_Flag'        
      
                               ])
+    try:
+        stock_prices = pd.read_csv('c:/data/Datasets/stockprices/'+symbol.upper() +'.csv')
+    except:
+        print(symbol," - Don't have price data, skipping this ticker")
+        return df
     
     starting_stock_value = False
     starting_sp_500_value = False
     i = 0
     snp500 = pd.read_csv(snppath)
-    snp500.Date = snp500.Date.apply(lambda x: pd.to_datetime(x).strftime('%Y-%m-%d'))
+    snp500.Date = snp500.Date.map(lambda x: pd.to_datetime(x).strftime('%Y-%m-%d'))
     #stock_fund = pd.read_csv(r'c:\data\Datasets\stocksfundam-concated\res.csv')
-    #stock_fund['Quarter end'] = stock_fund['Quarter end'].apply(lambda x: pd.to_datetime(x).strftime('%Y-%m-%d'))
+    #stock_prices['Date'] = stock_prices['timestamp'].map(lambda x: pd.to_datetime(x).strftime('%Y-%m-%d'))
     print("Getting Stock Price Data...")
         
     for unix_time in tqdm(date_range):
@@ -208,12 +213,13 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
                 unix_time_current -= 86400
                 snp500_data_current = datetime.fromtimestamp(unix_time_current).strftime('%Y-%m-%d')
                 snp500_value_current = snp500.loc[snp500.Date==snp500_data_current,'Adj Close']
-                #stock_price_current = stock_fund.loc[ ( stock_fund['Quarter end']==datetime.fromtimestamp(unix_time).strftime('%Y-%m-%d') )  & (stock_fund['Ticker']==symbol), 'Price']
+                
+                stock_price_current = stock_prices.loc[ ( stock_prices['timestamp']==snp500_data_current ), 'adjusted_close']
 
 
             snp500_value_current = float(snp500_value_current)
-            stock_price_current = quandl_stocks_host_price(symbol=symbol,date=snp500_data_current)
-            #stock_price_current = float(stock_price_current)
+            #stock_price_current = quandl_stocks_host_price(symbol=symbol,date=snp500_data_current)
+            stock_price_current = float(stock_price_current)
             print('Got Current Prices')
             
             try:
@@ -231,20 +237,18 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
                     snp500_value_future = snp500.loc[snp500.Date==snp500_data_future,'Adj Close']
 
                 snp500_value_future = float(snp500_value_future)
-                stock_price_future = quandl_stocks_host_price(symbol=symbol,date=snp500_data_future)
+                #stock_price_future = quandl_stocks_host_price(symbol=symbol,date=snp500_data_future)
+                stock_price_future = stock_prices.loc[ ( stock_prices['timestamp']==snp500_data_future ), 'adjusted_close']
+                stock_price_future = float(stock_price_future)
             except Exception as e:
                 print(e)
                 snp500_value_future = -1
                 stock_price_future = -1
 
-            
+            print('Sucessfully Loaded Prices')
         except:
             print('Cannot Get Any Data. Skipping this row')
-            snp500_value_future = -1
-            stock_price_future = -1
-            snp500_value_current = -1
-            stock_price_current = -1
-        
+            continue
         
         if not starting_stock_value and not starting_sp_500_value:
             stock_change_abs = 0
@@ -274,9 +278,13 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
         yty_perf_flag =  int(np.where( (yty_pr_change -yty_snp_change) >0 , 1,0 )) #'YtY Stock Perfomance Flag - 1 if outperfom snp500 ; 0 is underperform'
         
         #Current_to_future_stock_change = (
+        try:
+            stock_change_abs_funure  = (stock_price_future - stock_price_current) / stock_price_current
+            snp500_change_abs_future = (snp500_value_future - snp500_value_current) / snp500_value_current
+        except ZeroDivisionError:
+            stock_change_abs_funure = -1
+            snp500_change_abs_future = -1
         
-        stock_change_abs_funure  = (stock_price_future - stock_price_current) / stock_price_current
-        snp500_change_abs_future = (snp500_value_future - snp500_value_current) / snp500_value_current
         alpha = stock_change_abs_funure - snp500_change_abs_future
         investable = np.where((stock_change_abs_funure - snp500_change_abs_future) >0,1,0) #1 - outperform, 0 - ounderperform
         df = df.append({'Ticker': symbol,
@@ -301,9 +309,10 @@ def get_stock_perfomance(symbol=None,date_range=None,snppath=r'c:\data\Datasets\
                        ignore_index=True)
         i+=1
 
-    save = r"c:\data\finml\PriceVsSNP500_"+str(symbol)+".csv"
-    print('Will save to file: ',save)
+    save = r"c:\data\res\PriceVsSNP500_"+str(symbol)+".csv"
+    #print('Will save to file: ',save)
     df.to_csv(save,index=False)
+    print("Finished with ", symbol,' Sucessfully')
     return df
 
 
