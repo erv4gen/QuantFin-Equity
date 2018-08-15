@@ -2,6 +2,7 @@
 import sys
 sys.path.append('c:/pjt/QuantFin-Equity/source/libs/')
 import numpy as np
+from pprint import pprint
 import pandas as pd
 from sklearn import svm
 from sklearn.preprocessing import StandardScaler
@@ -10,16 +11,14 @@ from matplotlib import pyplot , style
 style.use('dark_background')
 import seaborn as sns
 import General ,PlotFunctions , DataAcquisition
-%matplotlib inline
+#%matplotlib inline
 
-
-
-#%%
-df = get_data_local()
+df = DataAcquisition.get_data_local()
 df.columns
 df = df[df > -100.]
-df = df[df.Absolute_Stock_Perfomance<200]
-vdf = df[['Alpha',
+#df = df[df.Absolute_Stock_Perfomance<200]
+vdf = df[['Ticker',
+        'Alpha',
        'Assets',
         'Liabilities',
          'Dividend per share',
@@ -35,12 +34,19 @@ vdf = df[['Alpha',
         
 
 vdf = vdf.replace('None',np.nan).dropna(axis=0)
-vdf = vdf.astype(float)
-vdf.dtypes
+vdf.iloc[:,1:] = vdf.iloc[:,1:].astype(float)
+print(vdf.dtypes)
 
 #%%
+vdf.head()
+#%%
 PlotFunctions.plot_df(vdf,figsize=(10,15))
+
+#%%
 sns.jointplot(vdf['ROE'],vdf['Absolute_Stock_Perfomance'],alpha=0.4,size=17)
+#%%
+
 pd.plotting.scatter_matrix(vdf,figsize=(45,40),c='blue')
+#%%
 ax= vdf[['Absolute_Stock_Perfomance','YtY_Stock_Price_Value_Change']].plot.box(figsize=(20,20))
 

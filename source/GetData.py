@@ -70,7 +70,8 @@ try:
 
     user = cred['user']
     passw =cred['pass']
-    host = cred['server']
+    host = cred['server']  
+    
     db =  cred['db']
     constr= 'mysql+mysqlconnector://{USER}:{PASS}@{HOST}/{DB}'.format(USER=user,
                                                                     PASS=passw,

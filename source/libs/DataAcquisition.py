@@ -375,7 +375,7 @@ def get_data_sql(name='SNP500 Stocks - 50'):
 
 def get_data_local(con_man=True):
     if con_man:
-        path = 'c:\\data\\res\\res.csv'
+        path = 'c:/data/Datasets/SnPStocksAgg/res.csv'
         return pd.read_csv(path)
     else:
         path = 'c:/data/Datasets/stocksfundam-concated/res_man.csv'
